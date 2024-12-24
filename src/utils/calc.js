@@ -20,10 +20,6 @@ export class DNASequenceMatcher {
         };
     }
 
-    /**
-     * 流式搜索生成器
-     * @generator
-     */
     *searchStream(target, options = {}) {
         const {
             minMatchRate = 0.9,
@@ -35,7 +31,6 @@ export class DNASequenceMatcher {
 
         target = target.toUpperCase();
         
-        // 参数验证
         if (!target || minMatchRate < 0 || minMatchRate > 1) {
             throw new Error('无效的参数');
         }
@@ -43,19 +38,27 @@ export class DNASequenceMatcher {
         const targetLength = target.length;
         let currentBatch = [];
         
-        // 流式处理每个位置
         for (let pos = startPos; pos <= endPos - targetLength; pos++) {
             const segment = this.sequence.slice(pos, pos + targetLength);
-            if (this.checkSegmentMatch(segment, target, minMatchRate, useDegenerate)) {
+            let isMatch = false;
+
+            if (minMatchRate === 1) {
+                // 完全匹配
+                isMatch = this.isExactMatch(segment, target, useDegenerate);
+            } else {
+                // 部分匹配
+                isMatch = this.checkSegmentMatch(segment, target, minMatchRate, useDegenerate);
+            }
+
+            if (isMatch) {
                 const match = {
                     position: pos,
-                    sequence: segment,
-                    matchRate: this.calculateMatchRate(segment, target, useDegenerate)
+                    length: segment.length,
+                    matchRate: minMatchRate === 1 ? 1 : this.calculateMatchRate(segment, target, useDegenerate)
                 };
                 
                 currentBatch.push(match);
                 
-                // 当批次达到指定大小时，yield 当前批次
                 if (currentBatch.length >= batchSize) {
                     yield currentBatch;
                     currentBatch = [];
@@ -63,32 +66,33 @@ export class DNASequenceMatcher {
             }
         }
         
-        // 返回最后一个不完整的批次
         if (currentBatch.length > 0) {
             yield currentBatch;
         }
     }
 
-    isMatch(a, b, useDegenerate) {
-        return useDegenerate ? this.degenerateMap[a]?.includes(b) : a === b;
+    isExactMatch(segment, target, useDegenerate) {
+        for (let i = 0; i < target.length; i++) {
+            if (!this.isMatch(segment[i], target[i], useDegenerate)) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    /**
-     * 检查序列片段是否匹配
-     * @private
-     */
+    isMatch(a, b, useDegenerate) {
+        if (useDegenerate) {
+            return this.degenerateMap[b]?.includes(a) || this.degenerateMap[a]?.includes(b) || false;
+        }
+        return a === b;
+    }
+
     checkSegmentMatch(segment, pattern, minMatchRate, useDegenerate) {
         let matches = 0;
         const length = pattern.length;
         
         for (let i = 0; i < length; i++) {
-            const patternBase = pattern[i];
-            const segmentBase = segment[i];
-            
-            const patternMatches = useDegenerate ? this.degenerateMap[patternBase] || [patternBase] : [patternBase];
-            const segmentMatches = useDegenerate ? this.degenerateMap[segmentBase] || [segmentBase] : [segmentBase];
-            
-            if (patternMatches.some(p => segmentMatches.includes(p))) {
+            if (this.isMatch(segment[i], pattern[i], useDegenerate)) {
                 matches++;
             }
         }
@@ -96,22 +100,12 @@ export class DNASequenceMatcher {
         return matches / length >= minMatchRate;
     }
 
-    /**
-     * 计算匹配率
-     * @private
-     */
     calculateMatchRate(seq1, seq2, useDegenerate) {
         let matches = 0;
         const length = seq1.length;
         
         for (let i = 0; i < length; i++) {
-            const base1 = seq1[i];
-            const base2 = seq2[i];
-            
-            const matches1 = this.isMatch(base1, base2, useDegenerate);
-            const matches2 = this.isMatch(base2, base1, useDegenerate);
-            
-            if (matches1.some(b1 => matches2.includes(b1))) {
+            if (this.isMatch(seq1[i], seq2[i], useDegenerate)) {
                 matches++;
             }
         }
@@ -119,9 +113,6 @@ export class DNASequenceMatcher {
         return matches / length;
     }
 
-    /**
-     * 常规搜索方法（返回所有结果）
-     */
     search(target, options = {}) {
         const results = [];
         for (const batch of this.searchStream(target, options)) {

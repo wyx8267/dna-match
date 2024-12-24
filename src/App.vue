@@ -64,7 +64,7 @@
     </el-form>
     <br />
     <el-row>
-      <el-col :span="16" v-if="resultData.length > 0">
+      <el-col :span="16">
         <el-table :data="resultData" border>
           <el-table-column prop="position" label="位置">
             <template #default="scope">{{ scope.row.position + 1 }}</template>
@@ -74,11 +74,7 @@
               >{{ scope.row.matchRate * 100 }}%</template
             >
           </el-table-column>
-          <el-table-column prop="length" label="序列长度">
-            <template #default="scope">{{
-              scope.row.sequence.length
-            }}</template>
-          </el-table-column>
+          <el-table-column prop="length" label="序列长度"></el-table-column>
         </el-table>
       </el-col>
     </el-row>
@@ -120,30 +116,25 @@ const handleSubmit = async () => {
   resultData.value = [];
   try {
     const matcher = new DNASequenceMatcher(form.source);
-    // resultData.value = await matcher.search(
-    //   form.target,
+    // for await (const batch of matcher.searchStream(form.target, {
+    //   batchSize: 100,
     //   minMatchRate,
-    //   form.useDegenerate
-    // );
-    for await (const batch of matcher.searchStream(form.target, {
-      batchSize: 100,
+    //   useDegenerate: form.useDegenerate,
+    // })) {
+    //   // 模拟异步处理每个批次
+    //   await new Promise((resolve) => setTimeout(resolve, 100));
+    //   resultData.value.push(...batch);
+    // }
+    resultData.value = await matcher.search(form.target, {
       minMatchRate,
       useDegenerate: form.useDegenerate,
-    })) {
-      // 模拟异步处理每个批次
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      console.log('\x1b[97m\x1b[41mbatch==>\x1b[0m', batch);
-      resultData.value.push(...batch);
-      // 这里可以添加其他处理逻辑
-      // 例如：将结果写入文件、发送到服务器等
-    }
-    console.log("\x1b[97m\x1b[41mresultData.value==>\x1b[0m", resultData.value);
+    });
     console.timeEnd("DNA MATCH");
-    ElMessage.success("搜索完成");
   } catch (error) {
     console.error(error);
     ElMessage.error("搜索出错");
   } finally {
+    ElNotification.success("搜索完成");
     loading.value = false;
   }
 };
