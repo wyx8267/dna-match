@@ -4,7 +4,7 @@
       <el-row>
         <el-col :span="16">
           <el-form-item label="源序列">
-            <InputArea v-model="form.source" :rows="8" />
+            <InputArea v-model="form.source" />
           </el-form-item>
         </el-col>
         <el-col :span="16">
