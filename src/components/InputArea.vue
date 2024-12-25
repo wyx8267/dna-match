@@ -1,9 +1,31 @@
 <template>
   <div>
-    <div style="display: flex;">
-      <div ref="editor" :style="{ width: '800px', height: props.height || '200px', border: '1px solid #ccc' }"></div>
-      <el-link type="primary" :underline="false" style="align-self: flex-end; width: 40px" @click="text = ''"
-        >清空</el-link>
+    <div style="display: flex">
+      <!-- <div
+        ref="editor"
+        :style="{
+          width: '800px',
+          height: props.height || '200px',
+          border: '1px solid #ccc',
+        }"
+      ></div> -->
+      <Editor
+      :style="{
+          width: '800px',
+          height: props.height || '200px',
+          border: '1px solid #ccc',
+        }"
+        mode="simple"
+        @onCreated="handleCreated"
+        @onChange="handleChange"
+      />
+      <el-link
+        type="primary"
+        :underline="false"
+        style="align-self: flex-end; width: 40px"
+        @click="text = ''"
+        >清空</el-link
+      >
     </div>
     <el-upload
       ref="uploadRef"
@@ -20,26 +42,26 @@
 </template>
 
 <script setup>
-import { ref, defineProps, onMounted } from "vue";
-import Quill from 'quill';
+import { defineProps, shallowRef, onBeforeUnmount } from "vue";
+import "@wangeditor/editor/dist/css/style.css";
+import { Editor } from "@wangeditor/editor-for-vue";
 
-const editor = ref(null);
-const quill = ref(null);
+const editorRef = shallowRef();
 
-onMounted(() => {
-  quill.value = new Quill(editor.value);
-  quill.value.setText(props.modelValue);
-  quill.value.on('text-change', () => {
-    emit("update:modelValue", quill.value.getText());
-  });
-});
+const handleCreated = (editor) => {
+  editorRef.value = editor; // 记录 editor 实例，重要！
+};
+
+const handleChange = (editor) => {
+  emit("update:modelValue", editor.getText());
+};
 
 const props = defineProps(["modelValue", "height"]);
 
 const emit = defineEmits(["update:modelValue"]);
 
-watch(() => props.modelValue, (value) => {
-  quill.value.setText(value);
+watch(() => props.modelValue, (newValue) => {
+  editorRef.value.setHtml(newValue);
 });
 
 const handleUpload = (file) => {
@@ -47,9 +69,22 @@ const handleUpload = (file) => {
   let reader = new FileReader();
   reader.readAsText(file.raw);
   reader.onload = () => {
-    quill.value.setText(reader.result);
+    editorRef.value.setHtml(reader.result);
   };
 };
+
+onBeforeUnmount(() => {
+  const editor = editorRef.value;
+  if (editor == null) return;
+  editor.destroy();
+});
 </script>
 
-<style scoped lang="scss"></style>
+<style scoped>
+.ql-clipboard {
+  position: fixed;
+  display: none;
+  left: 50%;
+  top: 50%;
+}
+</style>
