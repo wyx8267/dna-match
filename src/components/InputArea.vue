@@ -23,7 +23,7 @@
         type="primary"
         :underline="false"
         style="align-self: flex-end; width: 40px"
-        @click="text = ''"
+        @click="handleClear"
         >清空</el-link
       >
     </div>
@@ -54,6 +54,10 @@ const handleCreated = (editor) => {
 
 const handleChange = (editor) => {
   emit("update:modelValue", editor.getText());
+};
+
+const handleClear = () => {
+  editorRef.value.setText("");
 };
 
 const props = defineProps(["modelValue", "height"]);
